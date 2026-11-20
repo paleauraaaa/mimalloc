@@ -732,7 +732,13 @@ mi_decl_nodiscard mi_decl_restrict char* mi_heap_strndup(mi_heap_t* heap, const 
 
 #ifndef __wasi__
 // `realpath` using mi_malloc
-#ifdef _WIN32
+#if defined(_XBOX)
+mi_decl_nodiscard static mi_decl_restrict char* mi_theap_realpath(mi_theap_t* xtheap, const char* fname, char* resolved_name) mi_attr_noexcept {
+  MI_UNUSED(xtheap); MI_UNUSED(fname); MI_UNUSED(resolved_name);
+  errno = ENOSYS;
+  return NULL;
+}
+#elif defined(_WIN32)
 #ifndef PATH_MAX
 #define PATH_MAX MAX_PATH
 #endif

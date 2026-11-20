@@ -317,8 +317,13 @@ static inline size_t mi_ptr_bounds_limit(const void* p, size_t size) {
 #define __LZCNT__  1
 #endif
 
-// Define big endian if needed
-// #define MI_BIG_ENDIAN  1
+#ifndef MI_BIG_ENDIAN
+#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#define MI_BIG_ENDIAN  1
+#else
+#define MI_BIG_ENDIAN  0
+#endif
+#endif
 
 // maximum virtual address bits in a user-space pointer
 #if MI_DEFAULT_VIRTUAL_ADDRESS_BITS > 0

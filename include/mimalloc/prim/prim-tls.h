@@ -24,6 +24,7 @@ terms of the MIT license. A copy of the license can be found in the file
 // is always a portable fallback (based on regular thread local variables).
 //
 // Windows          : use NtCurrentTeB and TlsAlloc (MI_TLS_MODEL_WIN32)
+// Xbox 360         : use compiler thread locals with explicit thread cleanup
 // Linux,FreeBSD    : use thread locals with the initial-exec model  (MI_TLS_MODEL_LOCAL)
 // macOS            : use pthread locals with assembly for the thread-id  (MI_TLS_MODEL_PTHREADS)
 // Android,OpenBSD  : use pthread locals (MI_TLS_MODEL_PTHREADS). todo: maybe on Android MI_TLS_MODEL_LOCAL is better?
@@ -54,7 +55,9 @@ static inline bool mi_theap_matches_thread(mi_theap_t* theap) {
 
 // Default TLS model
 #if !defined(MI_TLS_MODEL_LOCAL) && !defined(MI_TLS_MODEL_PTHREADS) && !defined(MI_TLS_MODEL_FIXED) && !defined(MI_TLS_MODEL_WIN32)
-#if defined(_WIN32)
+#if defined(_XBOX)
+#define MI_TLS_MODEL_LOCAL        1
+#elif defined(_WIN32)
 #define MI_TLS_MODEL_WIN32        1
 #elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__ANDROID__)  // and FreeBSD?
 #define MI_TLS_MODEL_PTHREADS     1
@@ -90,7 +93,7 @@ static inline bool mi_theap_matches_thread(mi_theap_t* theap) {
 static inline void** mi_prim_thread_pointer(void) {
   return MI_PRIM_THREAD_POINTER();
 }
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(_XBOX)
 static inline void** mi_prim_thread_pointer(void) {
   return (void**)NtCurrentTeb();
 }

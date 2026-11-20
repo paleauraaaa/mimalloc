@@ -5,6 +5,10 @@ terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
 -----------------------------------------------------------------------------*/
 
+#if defined(_XBOX) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include "mimalloc/heap/process.h"
 #include "mimalloc/prim/prim.h"
 

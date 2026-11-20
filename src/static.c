@@ -17,6 +17,10 @@ terms of the MIT license. A copy of the license can be found in the file
 // allocation functions (on Unix's).
 // --------------------------------------------------------------------------
 
+#if defined(_XBOX) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif

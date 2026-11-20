@@ -153,7 +153,7 @@ int mi_dupenv_s(char** buf, size_t* size, const char* name) mi_attr_noexcept {
 int mi_wdupenv_s(wchar_t** buf, size_t* size, const wchar_t* name) mi_attr_noexcept {
   if (size != NULL) *size = 0;
   if (buf==NULL || name==NULL) return EINVAL;
-#if !defined(_WIN32) || (defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP))
+#if !defined(_WIN32) || defined(_XBOX) || (defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP))
   // not supported
   *buf = NULL;
   return EINVAL;

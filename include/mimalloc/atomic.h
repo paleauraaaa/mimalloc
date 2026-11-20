@@ -9,7 +9,7 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MI_ATOMIC_H
 
 // include windows.h or pthreads.h
-#if defined(_WIN32) || defined(__CYGWIN__)  // we use windows locks on cygwin, but otherwise treat it as unix
+#if (defined(_WIN32) && !defined(_XBOX)) || defined(__CYGWIN__)  // we use windows locks on cygwin, but otherwise treat it as unix
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -465,7 +465,50 @@ typedef _Atomic(size_t) mi_atomic_guard_t;
 #define mi_lock_maybe(lock,acquire)    for(bool mi_unique(_mi_go) = ((acquire) ? (mi_lock_acquire(lock),true) : true); mi_unique(_mi_go); mi_unique(_mi_go) = ((acquire) ? (mi_lock_release(lock),false) : false) )
 
 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_XBOX)
+
+#include <sys/lock.h>
+
+typedef struct mi_lock_s {
+  _Atomic(_LOCK_T) mutex;
+} mi_lock_t;
+
+#define MI_LOCK_INITIALIZER { MI_ATOMIC_VAR_INIT(NULL) }
+
+static inline _LOCK_T mi_xbox_lock_get(mi_lock_t* lock) {
+  _LOCK_T mutex = mi_atomic_load_acquire(&lock->mutex);
+  if (mutex == NULL) {
+    _LOCK_T candidate;
+    __retarget_lock_init(&candidate);
+    if (mi_atomic_cas_strong_acq_rel(&lock->mutex, &mutex, candidate)) {
+      mutex = candidate;
+    }
+    else {
+      __retarget_lock_close(candidate);
+    }
+  }
+  return mutex;
+}
+
+static inline bool mi_lock_try_acquire(mi_lock_t* lock) {
+  return (__xbox_lock_try_acquire(mi_xbox_lock_get(lock)) != 0);
+}
+static inline void mi_lock_acquire(mi_lock_t* lock) {
+  __retarget_lock_acquire(mi_xbox_lock_get(lock));
+}
+static inline void mi_lock_release(mi_lock_t* lock) {
+  __retarget_lock_release(mi_atomic_load_acquire(&lock->mutex));
+}
+static inline void mi_lock_init(mi_lock_t* lock) {
+  mi_atomic_store_relaxed(&lock->mutex, (_LOCK_T)NULL);
+}
+static inline void mi_lock_done(mi_lock_t* lock) {
+  _LOCK_T mutex = mi_atomic_load_relaxed(&lock->mutex);
+  mi_atomic_store_relaxed(&lock->mutex, (_LOCK_T)NULL);
+  if (mutex != NULL) __retarget_lock_close(mutex);
+}
+
+#elif defined(_WIN32) || defined(__CYGWIN__)
 
 typedef struct mi_lock_s {
   SRWLOCK mutex;    // slim reader-writer lock

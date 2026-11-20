@@ -33,6 +33,7 @@ terms of the MIT license. A copy of the license can be found in the file
 #include <unistd.h>    // sysconf, sleep
 #include <fcntl.h>     // open, close, read, access
 #include <stdlib.h>    // getenv, arc4random_buf
+#include <stdio.h>     // fputs, stderr
 
 #if defined(__linux__)
   #include <features.h>
@@ -1038,6 +1039,7 @@ size_t _mi_prim_numa_node_count(void) {
 #include <time.h>
 
 // low resolution timer
+#if !defined(_XBOX)
 static mi_msecs_t mi_prim_clock_now_lowres(void) {
   const int64_t ticks = (int64_t)clock();
   #if !defined(CLOCKS_PER_SEC)
@@ -1054,6 +1056,7 @@ static mi_msecs_t mi_prim_clock_now_lowres(void) {
     }
   #endif
 }
+#endif
 
 mi_msecs_t _mi_prim_clock_now(void) {
   #if defined(CLOCK_REALTIME) || defined(CLOCK_MONOTONIC)
@@ -1067,7 +1070,11 @@ mi_msecs_t _mi_prim_clock_now(void) {
       return ((mi_msecs_t)t.tv_sec * 1000) + ((mi_msecs_t)t.tv_nsec / 1000000L);
     }
   #endif
+  #if defined(_XBOX)
+  _mi_fatal_error("unable to query the Xbox monotonic clock (error %d)\n", errno);
+  #else
   return mi_prim_clock_now_lowres();
+  #endif
 }
 
 

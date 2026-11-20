@@ -146,7 +146,11 @@ static const mi_option_desc_t mi_option_descs[_mi_option_last] =
   { 0, MI_OPTION(deprecated_abandoned_page_purge) },
   { 0, MI_OPTION(deprecated_segment_reset) },   // reset segment memory on free (needs eager commit)
   { 1, MI_OPTION(deprecated_eager_commit_delay) },
+  #if defined(_XBOX)
+  { -1, MI_OPTION_LEGACY(purge_delay,reset_delay) },   // purging requires discard support
+  #else
   { 1000, MI_OPTION_LEGACY(purge_delay,reset_delay) },  // purge delay in milli-seconds
+  #endif
   { 0, MI_OPTION(use_numa_nodes) },           // 0 = use available numa nodes, otherwise use at most N nodes.
   { 0, MI_OPTION_LEGACY(disallow_os_alloc,limit_os_alloc) },           // 1 = do not use OS memory for allocation (but only reserved arenas)
   { 100, MI_OPTION(os_tag) },                   // only apple specific for now but might serve more or less related purpose

@@ -218,6 +218,7 @@ mi_decl_export void mi_process_info(size_t* elapsed_msecs, size_t* user_msecs, s
 mi_decl_export void mi_process_init(void)     mi_attr_noexcept;
 mi_decl_export void mi_cdecl mi_process_done(void) mi_attr_noexcept;
 mi_decl_export void mi_thread_init(void)      mi_attr_noexcept;
+// On Xbox 360 each allocating thread must call this before exiting.
 mi_decl_export void mi_thread_done(void)      mi_attr_noexcept;
 mi_decl_export void mi_thread_set_in_threadpool(void) mi_attr_noexcept; // communicate that a thread is in a threadpool
 
