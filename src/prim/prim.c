@@ -12,7 +12,7 @@ terms of the MIT license. A copy of the license can be found in the file
 // Select the implementation of the primitives
 // depending on the OS.
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(_XBOX)
 #include "windows/prim.c"  // VirtualAlloc (Windows)
 
 #elif defined(__APPLE__)

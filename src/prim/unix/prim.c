@@ -104,6 +104,8 @@ terms of the MIT license. A copy of the license can be found in the file
   #include <sys/domainset.h>
   #endif
   #include <sys/sysctl.h>
+#elif defined(_XBOX)
+  #include <xboxkrnl.h>  // XeCryptRandom
 #endif
 
 #if (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__)
@@ -432,13 +434,21 @@ static bool unix_detect_memtag(mi_os_mem_config_t* config) {
 
 void _mi_prim_mem_init( mi_os_mem_config_t* config )
 {
+#ifdef _XBOX
+  long psize = 4096;
+#else
   long psize = sysconf(_SC_PAGESIZE);
+#endif
   if (psize > 0 && (unsigned long)psize < SIZE_MAX) {
     config->page_size = (size_t)psize;
     config->alloc_granularity = (size_t)psize;
     unix_detect_physical_memory(config->page_size, &config->physical_memory_in_kib);
   }
+#ifdef _XBOX
+  config->has_partial_free = false;
+#else
   config->has_partial_free = true;    // mmap can free in parts
+#endif
   config->has_virtual_reserve = true; // todo: check if this true for NetBSD?  (for anonymous mmap with PROT_NONE)
   #if defined(MAP_ALIGNED) || defined(MAP_ALIGN)
   config->has_aligned_alloc = true;   // see `unix_mmap_prim_aligned`
@@ -1284,6 +1294,13 @@ bool _mi_prim_random_buf(void* buf, size_t buf_len) {
   }
   mi_prim_close(fd);
   return (count==buf_len);
+}
+
+#elif _XBOX
+
+bool _mi_prim_random_buf(void* buf, size_t buf_len) {
+  XeCryptRandom(buf, buf_len);
+  return true;
 }
 
 #else
