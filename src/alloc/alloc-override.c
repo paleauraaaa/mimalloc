@@ -11,6 +11,12 @@ terms of the MIT license. A copy of the license can be found in the file
 #include "mimalloc.h"
 #include "mimalloc/types.h"
 
+#if defined(_XBOX) && defined(MI_MALLOC_OVERRIDE) && !defined(_DLL)
+#include <errno.h>
+#include <malloc.h>
+#include <stdint.h>
+#endif
+
 #if !defined(MI_IN_ALLOC_C)
 #error "this file should be included from 'alloc.c' (so aliases can work)"
 #endif
@@ -152,7 +158,7 @@ typedef void* mi_nothrow_t;
     MI_INTERPOSE_FUN(_ZnamRKSt9nothrow_t,mi_new_nothrow),
   };
 
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(_XBOX)
   #if defined(_DEBUG)
   // the debug CRT heap allocates with `HeapAlloc` directly but frees through `_free_base` (which we override)
   #error "the static override is not supported with the debug CRT (/MTd); use /MT, the dynamic override (/MD), or build without MI_MALLOC_OVERRIDE (-DMI_OVERRIDE=OFF)"
@@ -389,7 +395,18 @@ extern "C" {
   // Forward Posix/Unix calls as well
   void*  reallocf(void* p, size_t newsize) MI_FORWARD2(mi_reallocf,p,newsize)
   size_t malloc_size(const void* p)        MI_FORWARD1(mi_malloc_size,p)
-  #if !defined(__ANDROID__) && !defined(__FreeBSD__) && !defined(__DragonFly__) && !defined(__EMSCRIPTEN__)
+  #if defined(_XBOX)
+  size_t malloc_usable_size(void *p)       { return mi_malloc_usable_size(p); }
+  struct mallinfo mallinfo(void) {
+    struct mallinfo result = {
+      SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX,
+      SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX, SIZE_MAX
+    };
+    errno = ENOTSUP;
+    return result;
+  }
+  void malloc_stats(void)                  { mi_stats_print_out(NULL, NULL); }
+  #elif !defined(__ANDROID__) && !defined(__FreeBSD__) && !defined(__DragonFly__) && !defined(__EMSCRIPTEN__)
   size_t malloc_usable_size(void *p)       MI_FORWARD1(mi_malloc_usable_size,p)
   #else
   size_t malloc_usable_size(const void *p) MI_FORWARD1(mi_malloc_usable_size,p)
