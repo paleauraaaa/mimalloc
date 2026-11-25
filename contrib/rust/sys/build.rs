@@ -64,6 +64,19 @@ fn user_defines() -> Vec<(String, Option<String>)> {
         .collect()
 }
 
+fn has_tool_override(tool: &str, target: &str) -> bool {
+    let names = [
+        format!("{tool}_{target}"),
+        format!("{}_{}", tool, target.replace('-', "_")),
+        format!("TARGET_{tool}"),
+        tool.to_owned(),
+    ];
+    for name in &names {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
+    names.iter().any(|name| env::var_os(name).is_some())
+}
+
 fn main() {
     let dir = mimalloc_dir();
     let include = dir.join("include");
@@ -88,6 +101,64 @@ fn main() {
 
     let mut build = cc::Build::new();
     build.include(&include).file(dir.join("src/static.c"));
+    if target_os == "xbox360" {
+        println!("cargo:rerun-if-env-changed=NXEDK_ROOT");
+        println!("cargo:rerun-if-env-changed=NXEDK_PICOLIBC_BUILD_DIR");
+        println!("cargo:rerun-if-env-changed=NXEDK_CLANG_RESOURCE_DIR");
+        if let Some(root) = env::var_os("NXEDK_ROOT") {
+            let root = PathBuf::from(root);
+            let picolibc_build = PathBuf::from(
+                env::var_os("NXEDK_PICOLIBC_BUILD_DIR")
+                    .expect("NXEDK_PICOLIBC_BUILD_DIR must point to a configured Picolibc build"),
+            );
+            let config = picolibc_build.join("picolibc.h");
+            assert!(
+                config.is_file(),
+                "Picolibc configuration not found at {}",
+                config.display()
+            );
+            println!("cargo:rerun-if-changed={}", config.display());
+            let target = env::var("TARGET").unwrap();
+            if !has_tool_override("CC", &target) {
+                let clang = root
+                    .join("toolchain")
+                    .join("win32")
+                    .join("bin")
+                    .join("llvm")
+                    .join("clang.exe");
+                if cfg!(windows) && clang.is_file() {
+                    build.compiler(clang);
+                } else {
+                    build.compiler("clang");
+                }
+            }
+            if !has_tool_override("AR", &target) {
+                let ar = root
+                    .join("toolchain")
+                    .join("win32")
+                    .join("bin")
+                    .join("llvm")
+                    .join("llvm-ar.exe");
+                if cfg!(windows) && ar.is_file() {
+                    build.archiver(ar);
+                } else {
+                    build.archiver("llvm-ar");
+                }
+            }
+            build
+                .no_default_flags(true)
+                .flag("--target=powerpc64-microsoft-xbox360")
+                .flag("-mcpu=xenon")
+                .flag("-ffreestanding")
+                .include(root.join("include"))
+                .include(root.join("src/picolibc/libc/machine/powerpc"))
+                .include(picolibc_build)
+                .include(root.join("src/picolibc/libc/include"));
+            if let Some(resource_dir) = env::var_os("NXEDK_CLANG_RESOURCE_DIR") {
+                build.flag("-resource-dir").flag(resource_dir);
+            }
+        }
+    }
     let compiler = build.get_compiler();
     let is_msvc = compiler.is_like_msvc();
     let is_gnu_like = (compiler.is_like_gnu() || compiler.is_like_clang()) && !is_msvc;
@@ -167,9 +238,12 @@ fn main() {
             .flag("-fvisibility=hidden")
             .flag("-Wno-unknown-pragmas");
         if compiler.is_like_clang() {
-            build
-                .flag("-Wno-static-in-inline")
-                .flag_if_supported("-mno-outline");
+            build.flag("-Wno-static-in-inline");
+            if target_os == "xbox360" && env::var_os("NXEDK_ROOT").is_some() {
+                build.flag("-mno-outline");
+            } else {
+                build.flag_if_supported("-mno-outline");
+            }
             if is_apple && target_arch == "aarch64" && is_apple_clang(&compiler) {
                 build.flag("-Xclang").flag("-fno-split-cold-code");
             }
