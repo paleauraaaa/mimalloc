@@ -34,7 +34,7 @@ int64_t _mi_pprof_time_secs(void) {
 #else
 
 #include <time.h>       // time
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(_XBOX)
 #include <fcntl.h>      // _O_CREAT, _O_TRUNC, _O_WRONLY, _O_BINARY, _O_TEXT
 #include <io.h>         // _sopen_s, _write, _close
 #include <share.h>      // _SH_DENYNO
@@ -68,7 +68,7 @@ int64_t _mi_pprof_time_secs(void) {
 
 struct mi_pprof_file_s {
   mi_heap_t* heap;
-  #if defined(_WIN32) || MI_HAS_UNISTDH
+  #if (defined(_WIN32) && !defined(_XBOX)) || MI_HAS_UNISTDH
   int        fd;
   #else
   FILE*      fp;
@@ -89,7 +89,7 @@ mi_pprof_file_t* _mi_pprof_fopen(mi_heap_t* heap, const char* fname, bool binary
   f->heap = heap;
   f->failed = false;
   f->len = 0;
-  #if defined(_WIN32)
+  #if defined(_WIN32) && !defined(_XBOX)
     int oflag = _O_CREAT | _O_TRUNC | _O_WRONLY | (binary ? _O_BINARY : _O_TEXT);
     int fd = -1;
     if (_sopen_s(&fd, fname, oflag, _SH_DENYNO, _S_IREAD | _S_IWRITE) != 0 || fd < 0) { mi_free(f); return NULL; }
@@ -118,7 +118,7 @@ static void mi_pprof_file_flush(mi_pprof_file_t* f) {
   size_t n = f->len;
   f->len = 0;
   while (n > 0 && !f->failed) {
-    #if defined(_WIN32)
+    #if defined(_WIN32) && !defined(_XBOX)
     const int w = _write(f->fd, p, (unsigned int)(n > MI_PPROF_FILE_BUF_SIZE ? MI_PPROF_FILE_BUF_SIZE : n));
     #elif MI_HAS_UNISTDH
     const ssize_t w = write(f->fd, p, n);
@@ -153,7 +153,7 @@ void _mi_pprof_fputs(mi_pprof_file_t* f, const char* s) {
 bool _mi_pprof_fclose(mi_pprof_file_t* f) {
   mi_pprof_file_flush(f);
   bool ok = !f->failed;
-  #if defined(_WIN32)
+  #if defined(_WIN32) && !defined(_XBOX)
   if (_close(f->fd) != 0) { ok = false; }
   #elif MI_HAS_UNISTDH
   if (close(f->fd) != 0) { ok = false; }
@@ -178,7 +178,7 @@ static size_t mi_backtrace_hash(void** frames, size_t depth) {
 }
 #endif
 
-#if _WIN32
+#if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>    // CaptureStackBackTrace
 mi_decl_noinline size_t _mi_pprof_backtrace(void** buffer, size_t max_depth, size_t* hash) {
   if (max_depth > ULONG_MAX) { max_depth = ULONG_MAX; }
@@ -296,7 +296,7 @@ void _mi_pprof_fprintf(mi_pprof_file_t* f, const char* fmt, ...) {
   _mi_pprof_fputs(f, buf);
 }
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
 
 // Walk the process address space, calling `on_module(ctx, base, end, path)`
@@ -587,7 +587,7 @@ void _mi_pprof_collect_modules(mi_heap_t* heap, mi_pprof_modules_t* mods) {
   mods->failed = false;
   #if defined(__linux__)
   mi_pprof_collect_modules_linux(heap, mods);
-  #elif defined(_WIN32)
+  #elif defined(_WIN32) && !defined(_XBOX)
   mi_pprof_collect_modules_win32(heap, mods);
   #elif defined(__APPLE__)
   mi_pprof_collect_modules_macos(heap, mods);
@@ -602,7 +602,7 @@ void _mi_pprof_write_mapped_libraries(mi_pprof_file_t* f) {
   _mi_pprof_fputs(f, "MAPPED_LIBRARIES:\n");
   #if defined(__linux__)
   mi_write_mapped_libraries_linux(f);
-  #elif defined(_WIN32)
+  #elif defined(_WIN32) && !defined(_XBOX)
   mi_write_mapped_libraries_win32(f);
   #elif defined(__APPLE__)
   mi_write_mapped_libraries_macos(f);
